@@ -140,10 +140,11 @@ public class DistCpUtils {
    *           unless it is empty
    */
   public static String getRelativePath(Path sourceRootPath, Path childPath) {
-    String childPathString = childPath.toUri().getPath();
-    String sourceRootPathString = sourceRootPath.toUri().getPath();
-    return sourceRootPathString.equals("/") ? childPathString :
-        childPathString.substring(sourceRootPathString.length());
+    //  String childPathString = childPath.toUri().getPath();
+    //  String sourceRootPathString = sourceRootPath.toUri().getPath();
+    //  return sourceRootPathString.equals("/") ? childPathString : childPathString.substring(sourceRootPathString.length());
+    // TODO 修改路径为全路径，防止相对路径冲突
+    return childPath.toUri().getPath();
   }
 
   /**

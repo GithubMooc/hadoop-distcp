@@ -18,14 +18,15 @@
 
 package org.aliyun.hadoop.tools;
 
+import com.google.common.collect.Sets;
+import org.aliyun.hadoop.tools.util.DistCpUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.io.IOUtils;
-import org.aliyun.hadoop.tools.util.DistCpUtils;
 import org.apache.hadoop.security.Credentials;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,8 +35,6 @@ import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.net.URI;
 import java.util.Set;
-
-import com.google.common.collect.Sets;
 
 /**
  * The CopyListing abstraction is responsible for how the list of
@@ -94,6 +93,21 @@ public abstract class CopyListing extends Configured {
     LOG.info("Number of paths in the copy list: " + this.getNumberOfPaths());
   }
 
+  // TODO 构建目标端List
+  public final void buildListing(Path pathToListFile,
+                                 DistCpContext distCpContext,Boolean flag) throws IOException {
+    validatePaths(distCpContext);
+    // doBuildListing(pathToListFile, distCpContext);
+     doBuildListing(pathToListFile, distCpContext,flag);
+    // Configuration config = getConf();
+
+    // config.set(DistCpConstants.CONF_LABEL_LISTING_FILE_PATH, pathToListFile.toString());
+    // config.setLong(DistCpConstants.CONF_LABEL_TOTAL_BYTES_TO_BE_COPIED, getBytesToCopy());
+    // config.setLong(DistCpConstants.CONF_LABEL_TOTAL_NUMBER_OF_RECORDS, getNumberOfPaths());
+
+    validateFinalListing(pathToListFile, distCpContext);
+    LOG.info("Target list build completed. ");
+  }
   /**
    * Validate input and output paths
    *
@@ -113,6 +127,8 @@ public abstract class CopyListing extends Configured {
   protected abstract void doBuildListing(Path pathToListFile,
       DistCpContext distCpContext) throws IOException;
 
+  protected abstract void doBuildListing(Path pathToListFile,
+                                         DistCpContext distCpContext,Boolean flag) throws IOException;
   /**
    * Return the total bytes that distCp should copy for the source paths
    * This doesn't consider whether file is same should be skipped during copy

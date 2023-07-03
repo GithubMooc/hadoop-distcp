@@ -18,15 +18,13 @@
 
 package org.aliyun.hadoop.tools.mapred;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.util.EnumSet;
-
 import org.aliyun.hadoop.tools.CopyListingFileStatus;
+import org.aliyun.hadoop.tools.DistCpConstants;
+import org.aliyun.hadoop.tools.DistCpOptionSwitch;
+import org.aliyun.hadoop.tools.DistCpOptions;
+import org.aliyun.hadoop.tools.DistCpOptions.FileAttribute;
 import org.aliyun.hadoop.tools.util.DistCpUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileChecksum;
 import org.apache.hadoop.fs.FileStatus;
@@ -34,11 +32,13 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper;
-import org.aliyun.hadoop.tools.DistCpConstants;
-import org.aliyun.hadoop.tools.DistCpOptionSwitch;
-import org.aliyun.hadoop.tools.DistCpOptions;
-import org.aliyun.hadoop.tools.DistCpOptions.FileAttribute;
 import org.apache.hadoop.util.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.util.EnumSet;
 
 /**
  * Mapper class that executes the DistCp copy operation.
@@ -140,9 +140,9 @@ public class CopyMapper extends Mapper<Text, CopyListingFileStatus, Text, Text> 
     Path sourcePath = sourceFileStatus.getPath();
     if (LOG.isDebugEnabled())
       LOG.debug("DistCpMapper::map(): Received " + sourcePath + ", " + relPath);
-
-    Path target = new Path(targetWorkPath.makeQualified(targetFS.getUri(),
-                          targetFS.getWorkingDirectory()) + relPath.toString());
+    // TODO 从源端获取全路径
+    // Path target = new Path(targetWorkPath.makeQualified(targetFS.getUri(), targetFS.getWorkingDirectory()) + relPath.toString());
+    Path target = new Path(targetWorkPath.makeQualified(targetFS.getUri(), targetFS.getWorkingDirectory()) +sourcePath.toUri().getPath());
 
     EnumSet<DistCpOptions.FileAttribute> fileAttributes
             = getFileAttributeSettings(context);

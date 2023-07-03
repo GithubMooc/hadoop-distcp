@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -38,6 +38,7 @@ public class GlobbedCopyListing extends CopyListing {
   private static final Logger LOG = LoggerFactory.getLogger(GlobbedCopyListing.class);
 
   private final CopyListing simpleListing;
+
   /**
    * Constructor, to initialize the configuration.
    * @param configuration The input Configuration object.
@@ -46,13 +47,13 @@ public class GlobbedCopyListing extends CopyListing {
    */
   public GlobbedCopyListing(Configuration configuration, Credentials credentials) {
     super(configuration, credentials);
-    simpleListing = new SimpleCopyListing(getConf(), credentials) ;
+    simpleListing = new SimpleCopyListing(getConf(), credentials);
   }
 
   /** {@inheritDoc} */
   @Override
   protected void validatePaths(DistCpContext context)
-      throws IOException, InvalidInputException {
+          throws IOException, InvalidInputException {
   }
 
   /**
@@ -65,28 +66,62 @@ public class GlobbedCopyListing extends CopyListing {
    */
   @Override
   public void doBuildListing(Path pathToListingFile, DistCpContext context)
-      throws IOException {
+          throws IOException {
 
     List<Path> globbedPaths = new ArrayList<Path>();
     if (context.getSourcePaths().isEmpty()) {
-      throw new InvalidInputException("Nothing to process. Source paths::EMPTY");  
+      throw new InvalidInputException("Nothing to process. Source paths::EMPTY");
     }
 
     for (Path p : context.getSourcePaths()) {
       FileSystem fs = p.getFileSystem(getConf());
       FileStatus[] inputs = fs.globStatus(p);
 
-      if(inputs != null && inputs.length > 0) {
-        for (FileStatus onePath: inputs) {
+      if (inputs != null && inputs.length > 0) {
+        for (FileStatus onePath : inputs) {
           globbedPaths.add(onePath.getPath());
         }
       } else {
-        throw new InvalidInputException(p + " doesn't exist");        
+        // TODO 修改：文件不存在跳过
+        // throw new InvalidInputException(p + " doesn't exist");
+        LOG.warn(p + " doesn't exist");
       }
     }
 
     context.setSourcePaths(globbedPaths);
     simpleListing.buildListing(pathToListingFile, context);
+  }
+
+  // TODO 增加TargeListBuild代码
+  public void doBuildListing(Path pathToListingFile, DistCpContext context, Boolean flag)
+          throws IOException {
+
+    List<Path> globbedPaths = new ArrayList<Path>();
+    if (context.getSourcePaths().isEmpty()) {
+      throw new InvalidInputException("Nothing to process. Source paths::EMPTY");
+    }
+    // TODO 目标路径
+    Path targetPath = context.getTargetPath();
+    for (Path p : context.getSourcePaths()) {
+      // TODO 拼接源路径和目标路径
+      String path = p.toUri().getPath();
+      p = new Path(targetPath.toString() + path);
+      FileSystem fs = p.getFileSystem(getConf());
+      FileStatus[] inputs = fs.globStatus(p);
+
+      if (inputs != null && inputs.length > 0) {
+        for (FileStatus onePath : inputs) {
+          globbedPaths.add(onePath.getPath());
+        }
+      } else {
+        // TODO 修改：文件不存在跳过
+        // throw new InvalidInputException(p + " doesn't exist");
+        LOG.warn(p + " doesn't exist");
+      }
+    }
+
+    context.setSourcePaths(globbedPaths);
+    simpleListing.buildListing(pathToListingFile, context, flag);
   }
 
   /** {@inheritDoc} */

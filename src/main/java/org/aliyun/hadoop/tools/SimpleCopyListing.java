@@ -205,7 +205,17 @@ public class SimpleCopyListing extends CopyListing {
       doBuildListing(getWriter(pathToListingFile), context);
     }
   }
-
+  // TODO 自定义方法
+  @Override
+  protected void doBuildListing(Path pathToListingFile,
+                                DistCpContext context,Boolean flag) throws IOException {
+    if (context.shouldUseSnapshotDiff()) {
+      // TODO 此处暂时不动
+      doBuildListingWithSnapshotDiff(getWriter(pathToListingFile), context);
+    } else {
+      doBuildListing(getWriter(pathToListingFile), context);
+    }
+  }
   /**
    * Get a path with its scheme and authority.
    */
@@ -337,6 +347,8 @@ public class SimpleCopyListing extends CopyListing {
     try {
       List<FileStatusInfo> statusList = Lists.newArrayList();
       for (Path path: context.getSourcePaths()) {
+        // TODO 修改此处代码，文件不存在跳过
+        try {
         FileSystem sourceFS = path.getFileSystem(getConf());
         final boolean preserveAcls =
             context.shouldPreserve(DistCpOptions.FileAttribute.ACL);
@@ -388,6 +400,96 @@ public class SimpleCopyListing extends CopyListing {
           }
           traverseDirectory(fileListWriter, sourceFS, sourceDirs,
               sourcePathRoot, context, null, statusList);
+        }
+        }catch (Exception e){
+          // TODO 修改此处，文件不存在跳过
+          LOG.warn("Exception encountered when getFileStatus: "+ path);
+          e.printStackTrace();
+        }
+      }
+      if (randomizeFileListing) {
+        writeToFileListing(statusList, fileListWriter);
+      }
+      fileListWriter.close();
+      printStats();
+      LOG.info("Build file listing completed.");
+      fileListWriter = null;
+    } finally {
+      IOUtils.cleanupWithLogger(LOG, fileListWriter);
+    }
+  }
+
+
+
+  // TODO 构建目标目录
+  @VisibleForTesting
+  protected void doBuildListing(SequenceFile.Writer fileListWriter,
+                                DistCpContext context,Boolean flag) throws IOException {
+    if (context.getNumListstatusThreads() > 0) {
+      numListstatusThreads = context.getNumListstatusThreads();
+    }
+
+    try {
+      List<FileStatusInfo> statusList = Lists.newArrayList();
+      for (Path path: context.getSourcePaths()) {
+        // TODO 修改此处代码，文件不存在跳过
+        try {
+          FileSystem sourceFS = path.getFileSystem(getConf());
+          final boolean preserveAcls =
+                  context.shouldPreserve(DistCpOptions.FileAttribute.ACL);
+          final boolean preserveXAttrs =
+                  context.shouldPreserve(DistCpOptions.FileAttribute.XATTR);
+          final boolean preserveRawXAttrs =
+                  context.shouldPreserveRawXattrs();
+          path = makeQualified(path);
+
+          FileStatus rootStatus = sourceFS.getFileStatus(path);
+          Path sourcePathRoot = computeSourceRootPath(rootStatus, context);
+
+          FileStatus[] sourceFiles = sourceFS.listStatus(path);
+          boolean explore = (sourceFiles != null && sourceFiles.length > 0);
+          if (!explore || rootStatus.isDirectory()) {
+            LinkedList<CopyListingFileStatus> rootCopyListingStatus =
+                    DistCpUtils.toCopyListingFileStatus(sourceFS, rootStatus,
+                            preserveAcls, preserveXAttrs, preserveRawXAttrs,
+                            context.getBlocksPerChunk());
+            writeToFileListingRoot(fileListWriter, rootCopyListingStatus,
+                    sourcePathRoot, context);
+          }
+          if (explore) {
+            ArrayList<FileStatus> sourceDirs = new ArrayList<FileStatus>();
+            for (FileStatus sourceStatus: sourceFiles) {
+              if (LOG.isDebugEnabled()) {
+                LOG.debug("Recording source-path: " + sourceStatus.getPath() + " for copy.");
+              }
+              LinkedList<CopyListingFileStatus> sourceCopyListingStatus =
+                      DistCpUtils.toCopyListingFileStatus(sourceFS, sourceStatus,
+                              preserveAcls && sourceStatus.isDirectory(),
+                              preserveXAttrs && sourceStatus.isDirectory(),
+                              preserveRawXAttrs && sourceStatus.isDirectory(),
+                              context.getBlocksPerChunk());
+              for (CopyListingFileStatus fs : sourceCopyListingStatus) {
+                if (randomizeFileListing) {
+                  addToFileListing(statusList,
+                          new FileStatusInfo(fs, sourcePathRoot), fileListWriter);
+                } else {
+                  writeToFileListing(fileListWriter, fs, sourcePathRoot);
+                }
+              }
+              if (sourceStatus.isDirectory()) {
+                if (LOG.isDebugEnabled()) {
+                  LOG.debug("Adding source dir for traverse: " + sourceStatus.getPath());
+                }
+                sourceDirs.add(sourceStatus);
+              }
+            }
+            traverseDirectory(fileListWriter, sourceFS, sourceDirs,
+                    sourcePathRoot, context, null, statusList);
+          }
+        }catch (Exception e){
+          // TODO 修改此处，文件不存在跳过
+          LOG.warn("Exception encountered when getFileStatus: "+ path);
+          e.printStackTrace();
         }
       }
       if (randomizeFileListing) {
